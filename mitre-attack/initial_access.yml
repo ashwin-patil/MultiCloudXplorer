@@ -1,0 +1,212 @@
+- attack:
+    tactic: InitialAccess
+    techniques: T1078.004
+    data_source: User Account
+    data_component: User Account Authentication
+  activity: Cloud Successful Logon
+  Azure AD:
+    - name: Sign-in activity
+      platform: Azure AD
+      filter_in:
+        - column_name : ResultType
+          operator : == 
+          value : 0
+      references: 
+        - https://learn.microsoft.com/en-us/graph/api/resources/signin?view=graph-rest-beta#properties
+        - https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-aadsts-error-codes
+        - https://learn.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/signinlogs
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/aadserviceprincipalsigninlogs
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/aadmanagedidentitysigninlogs
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: UserPrincipalName
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: IPAddress
+      notes: You can use either ResultType or ErrorCode field with value 0 to determine successfule logons.
+  Office 365:
+    - name: Office 365 Exchange Login
+      platform: Office 365
+      filter_in:
+        - column_name : OfficeWorkload
+          operator : == 
+          value : Exchange
+        - column_name : Operation
+          operator : == 
+          value : MailboxLogin
+        - column_name : ResultStatus
+          operator : == 
+          value : Succeeded
+      references: 
+        - https://learn.microsoft.com/en-us/exchange/policy-and-compliance/mailbox-audit-logging/mailbox-audit-logging?view=exchserver-2019#mailbox-actions-logged-by-mailbox-audit-logging
+        - https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema
+        - https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/officeactivity
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: UserId
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: ClientIP      
+      notes: ClientInfoString identifies type of application used e.g. browser, powershell etc.
+  AWS:
+    - name: AWS Console Login
+      platform: AWS
+      filter_in:
+        - column_name : eventSource
+          operator : == 
+          value : signin.amazonaws.com
+        - column_name : eventName
+          operator : == 
+          value : ConsoleLogin
+        - column_name : responseElements.ConsoleLogin
+          operator : == 
+          value : Success
+      references: 
+        - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-aws-console-sign-in-events.html
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/awscloudtrail
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: userIdentity.userName
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: ClientIP      
+      notes: null.
+  Google Workspace:
+    - name: Google Workspace Login
+      platform: Google Workspace
+      filter_in:
+        - column_name : serviceName
+          operator : == 
+          value : login.googleapis.com
+        - column_name : eventName
+          operator : == 
+          value : login_success
+        - column_name : methodName
+          operator : == 
+          value : google.login.LoginService.loginSuccess
+      references: 
+        - https://developers.google.com/admin-sdk/reports/v1/appendix/activity/login
+        - https://cloud.google.com/logging/docs/audit/gsuite-login-samples#8
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: authenticationInfo.principalEmail
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: requestMetadata.callerIp     
+      notes: Null.
+- activity: Cloud Failed Logon
+  attack:
+    tactic: InitialAccess
+    techniques: 
+      - T1078.004
+      - T1110
+    data_source: user account
+    data_component: user account authentication
+    security_events:
+    - name: Sign-in activity
+      platform: Azure AD
+      audit_category: 
+      filter_in:
+        - column_name : ResultType
+          operator : =! 
+          value : 0
+      references: 
+        - https://learn.microsoft.com/en-us/graph/api/resources/signin?view=graph-rest-beta#properties
+        - https://learn.microsoft.com/en-us/graph/api/resources/signinstatus?view=graph-rest-beta
+        - https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-aadsts-error-codes
+        - https://learn.microsoft.com/en-us/azure/active-directory/reports-monitoring/concept-sign-ins
+      notes: You can use either ResultType or ErrorCode field with value non zero to determine failed logons.
+  Office 365:
+    - name: Office 365 Exchange Login
+      platform: Office 365
+      filter_in:
+        - column_name : OfficeWorkload
+          operator : == 
+          value : Exchange
+        - column_name : Operation
+          operator : == 
+          value : MailboxLogin
+        - column_name : ResultStatus
+          operator : == 
+          value : Failed
+      references: 
+        - https://learn.microsoft.com/en-us/exchange/policy-and-compliance/mailbox-audit-logging/mailbox-audit-logging?view=exchserver-2019#mailbox-actions-logged-by-mailbox-audit-logging
+        - https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema
+        - https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#auditlogrecordtype
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/officeactivity
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: UserId
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: ClientIP      
+      notes: ClientInfoString identifies type of application used e.g. browser, powershell etc. you can also look for != Succeeded.
+  AWS:
+    - name: AWS Console Login
+      platform: AWS
+      filter_in:
+        - column_name : eventSource
+          operator : == 
+          value : signin.amazonaws.com
+        - column_name : eventName
+          operator : == 
+          value : ConsoleLogin
+        - column_name : responseElements.ConsoleLogin
+          operator : == 
+          value : Failure
+      references: 
+        - https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-aws-console-sign-in-events.html
+        - https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/awscloudtrail
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: userIdentity.userName
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: ClientIP      
+      notes: ClientInfoString identifies type of application used e.g. browser, powershell etc.
+  Google Workspace:
+    - name: Google Workspace Login
+      platform: Google Workspace
+      filter_in:
+        - column_name : serviceName
+          operator : == 
+          value : login.googleapis.com
+        - column_name : eventName
+          operator : == 
+          value : login_failure
+        - column_name : methodName
+          operator : == 
+          value : google.login.LoginService.loginFailure
+      references: 
+        - https://developers.google.com/admin-sdk/reports/v1/appendix/activity/login
+        - https://cloud.google.com/logging/docs/audit/gsuite-login-samples#8
+      entityMappings:
+        - entityType: Account
+          fieldMappings:
+            - identifier: FullName
+              columnName: authenticationInfo.principalEmail
+        - entityType: IP
+          fieldMappings:
+            - identifier: Address
+              columnName: requestMetadata.callerIp     
+      notes: Null.
