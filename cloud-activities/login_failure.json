@@ -126,7 +126,7 @@
                         ]
                     }
                 ],
-                "notes": "ClientInfoString identifies type of application used e.g. browser, powershell etc."
+                "notes": null
             }
         ],
         "Google Workspace": [
